@@ -1,0 +1,135 @@
+services:
+  # The Message Broker / Queue
+  redis:
+    image: redis:7-alpine
+    container_name: omnichannel_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  # The Node.js Webhook Receiver (Port 3000)
+  gateway:
+    build: 
+      context: ./ai-brain/gateway
+      dockerfile: Dockerfile
+    container_name: omnichannel_gateway
+    ports:
+      - "3000:3000"
+    dns:
+      - 8.8.8.8
+    # volumes: removed for production image integrity
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - META_VERIFY_TOKEN=${META_VERIFY_TOKEN}
+      - META_ACCESS_TOKEN=${META_ACCESS_TOKEN}
+      - META_PHONE_NUMBER_ID=${META_PHONE_NUMBER_ID}
+      - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET}
+      - VAPI_API_KEY=${VAPI_API_KEY}
+      - VAPI_ASSISTANT_ID=${VAPI_ASSISTANT_ID}
+      - VAPI_PHONE_NUMBER_ID=${VAPI_PHONE_NUMBER_ID}
+      - BRAIN_URL=http://brain:8000
+      - GATEWAY_PUBLIC_URL=${GATEWAY_PUBLIC_URL}
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # The Python Routing Engine (Port 8000)
+  brain:
+    build:
+      context: ./ai-brain
+      dockerfile: Dockerfile
+    container_name: omnichannel_brain
+    command: uvicorn brain.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    # volumes: removed for production image integrity
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # The Python Celery Worker (Pulls from Redis)
+  worker:
+    build:
+      context: ./ai-brain
+      dockerfile: Dockerfile
+    container_name: omnichannel_worker
+    command: celery -A worker.tasks worker --loglevel=info
+    # volumes: removed for production image integrity
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      - redis
+      - brain
+    restart: unless-stopped
+
+  # Always-On Redis Consumer (Processes incoming messages in real-time)
+  consumer:
+    build:
+      context: ./ai-brain
+      dockerfile: Dockerfile
+    container_name: omnichannel_consumer
+    command: python -m worker.consumer
+    # volumes: removed for production image integrity
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - GATEWAY_URL=http://gateway:3000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    depends_on:
+      - redis
+      - brain
+      - gateway
+    restart: unless-stopped
+
+  # Background RAG Consumer (Processes PDF and Web scaling queues)
+  rag_worker:
+    build:
+      context: ./ai-brain
+      dockerfile: Dockerfile
+    container_name: omnichannel_rag_worker
+    command: python -m worker.rag_consumer
+    # volumes: removed for production image integrity
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+volumes:
+  redis_data:

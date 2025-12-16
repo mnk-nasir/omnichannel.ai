@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log
+.env
+Dockerfile
+docker-compose.lock
+gateway_err.log
+gateway_out.log
+.wwebjs_auth
+.wwebjs_cache

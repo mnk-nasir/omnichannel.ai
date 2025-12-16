@@ -1,0 +1,44 @@
+# Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+brain_logs.txt
+consumer_logs.txt
+gateway_logs.txt
+worker_logs.txt
+
+# Dependencies
+node_modules/
+dist/
+build/
+
+# Next.js
+.next/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Environment variables
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local Redis
+redis.zip
+redis-win/
+
+# Documentation & Prompts
+Product-Details/
+prompts/
+project_recreation_prompts/

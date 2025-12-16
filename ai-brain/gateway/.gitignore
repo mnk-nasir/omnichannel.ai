@@ -1,0 +1,20 @@
+# Dependencies — never push these
+node_modules/
+
+# Environment secrets — NEVER commit
+.env
+.env.local
+.env.*
+
+# WhatsApp session data (contains auth secrets)
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Logs
+*.log
+gateway_out.log
+gateway_err.log
+
+# System files
+.DS_Store
+Thumbs.db

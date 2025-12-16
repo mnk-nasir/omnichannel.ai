@@ -1,0 +1,34 @@
+services:
+  # -----------------------------------------
+  # Redis: Message Queue & Caching Layer
+  # -----------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: omnichannel_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # -----------------------------------------
+  # PostgreSQL + pgvector: Database & AI Memory
+  # -----------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: omnichannel_postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: omnichannel_core
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
